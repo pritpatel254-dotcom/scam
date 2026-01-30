@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mauli, be my Valentine? 💘</title>
+
+  <style>
+    :root { --bg:#0b1020; --card:#121a33; --text:#e8ecff; --muted:#aab4ff; }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+
+    body{
+      margin:0; min-height:100vh;
+      display:grid; place-items:center;
+      background: radial-gradient(1200px 800px at 50% 30%, #1a245a 0%, var(--bg) 60%);
+      color:var(--text);
+      overflow:hidden;
+    }
+
+    /* Confetti canvas (behind everything) */
+    #confettiCanvas{
+      position:fixed;
+      inset:0;
+      z-index:0;
+      pointer-events:none;
+    }
+
+    .card{
+      width:min(560px, 92vw);
+      background: rgba(18,26,51,.92);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:20px;
+      padding:28px 22px;
+      text-align:center;
+      box-shadow: 0 18px 55px rgba(0,0,0,.45);
+      position:relative;
+      z-index:2;
+    }
+
+    h1{ margin:0 0 8px; font-size:clamp(26px, 4vw, 42px); }
+    p{ margin:0 0 18px; color:var(--muted); }
+
+    .buttons{
+      display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    #yesBtn{
+      font-size:22px;
+      padding:16px 30px;
+      border:0;
+      border-radius:16px;
+      cursor:pointer;
+      color:#0b1020;
+      background: linear-gradient(135deg, #ff5db1, #ffd36e);
+      box-shadow: 0 10px 25px rgba(255, 93, 177, .25);
+    }
+    #yesBtn:active{ transform: scale(.98); }
+
+    #noBtn{
+      font-size:16px;
+      padding:12px 18px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      cursor:pointer;
+      position:fixed;
+      left: 55%;
+      top: 60%;
+      z-index:3;
+      user-select:none;
+      touch-action:none;
+      backdrop-filter: blur(6px);
+    }
+
+    /* Floating hearts layer */
+    .heart-layer{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:1;
+      overflow:hidden;
+    }
+    .heart{
+      position:absolute;
+      bottom:-40px;
+      font-size: 18px;
+      opacity: .85;
+      animation: floatUp linear forwards;
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,.35));
+    }
+    @keyframes floatUp{
+      from{
+        transform: translateY(0) translateX(0) scale(1) rotate(0deg);
+        opacity: 0;
+      }
+      10%{ opacity: .85; }
+      to{
+        transform: translateY(-110vh) translateX(var(--drift)) scale(var(--scale)) rotate(var(--rot));
+        opacity: 0;
+      }
+    }
+
+    /* Modal */
+    .modal{
+      position:fixed; inset:0;
+      display:none;
+      align-items:center; justify-content:center;
+      background: rgba(0,0,0,.55);
+      z-index:10;
+      padding:22px;
+    }
+    .modal.show{ display:flex; }
+    .modalBox{
+      width:min(560px, 92vw);
+      background: rgba(18,26,51,.96);
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:18px;
+      padding:22px;
+      text-align:center;
+      box-shadow: 0 18px 55px rgba(0,0,0,.55);
+    }
+    .modalBox h2{ margin:0 0 8px; font-size: 30px; }
+    .modalBox p{ margin:0; color: var(--text); font-size:18px; line-height:1.35; }
+    .modalBox button{
+      margin-top:14px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      cursor:pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Confetti canvas behind everything -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- Floating hearts -->
+  <div class="heart-layer" id="heartLayer"></div>
+
+  <div class="card">
+    <h1>Mauli, will you be my Valentine? 💘</h1>
+    <p>(Please say yes. The “no” button is… shy.)</p>
+
+    <div class="buttons">
+      <button id="yesBtn">YES 💖</button>
+      <button id="noBtn" aria-label="No">NO 🙃</button>
+    </div>
+  </div>
+
+  <!-- Audio (you will add the mp3 to your GitHub repo) -->
+  <audio id="bgMusic" preload="auto">
+    <source src="music.mp3" type="audio/mpeg">
+  </audio>
+
+  <div id="modal" class="modal" role="dialog" aria-modal="true">
+    <div class="modalBox">
+      <h2 id="modalTitle">She said YES!! 💞</h2>
+      <p id="modalText"></p>
+      <button id="closeModal">Close</button>
+    </div>
+  </div>
+
+  <script>
+    /***************
+     * CUSTOM TEXT *
+     ***************/
+    const CUSTOM = {
+      questionName: "Mauli",
+      subText: "(Please say yes. The “no” button is… shy.)",
+      yesPopupTitle: "YAYYYY 💞",
+      yesPopupText: "I knew you'd say yes bebe, happy valentines day! (you didn't have a choice)"
+    };
+
+    // Apply custom text
+    document.title = `${CUSTOM.questionName}, be my Valentine? 💘`;
+    document.querySelector("h1").textContent = `${CUSTOM.questionName}, will you be my Valentine? 💘`;
+    document.querySelector(".card p").textContent = CUSTOM.subText;
+
+    const noBtn = document.getElementById("noBtn");
+    const yesBtn = document.getElementById("yesBtn");
+    const modal = document.getElementById("modal");
+    const closeModal = document.getElementById("closeModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalText = document.getElementById("modalText");
+    const heartLayer = document.getElementById("heartLayer");
+    const bgMusic = document.getElementById("bgMusic");
+
+    modalTitle.textContent = CUSTOM.yesPopupTitle;
+    modalText.textContent = CUSTOM.yesPopupText;
+
+    /*********************
+     * NO BUTTON RUNS AWAY
+     *********************/
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function moveNoButtonAway(fromX, fromY){
+      const rect = noBtn.getBoundingClientRect();
+      const padding = 12;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      let dx = cx - fromX;
+      let dy = cy - fromY;
+
+      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+        dx = (Math.random() - 0.5);
+        dy = (Math.random() - 0.5);
+      }
+
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len; dy /= len;
+
+      const step = Math.min(Math.max(vw, vh) * 0.18, 230);
+
+      let newLeft = rect.left + dx * step + (Math.random() - 0.5) * 50;
+      let newTop  = rect.top  + dy * step + (Math.random() - 0.5) * 50;
+
+      newLeft = clamp(newLeft, padding, vw - rect.width - padding);
+      newTop  = clamp(newTop,  padding, vh - rect.height - padding);
+
+      noBtn.style.left = newLeft + "px";
+      noBtn.style.top  = newTop + "px";
+    }
+
+    noBtn.addEventListener("mouseenter", (e) => {
+      moveNoButtonAway(e.clientX, e.clientY);
+    });
+
+    noBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      moveNoButtonAway(e.clientX, e.clientY);
+    });
+
+    window.addEventListener("resize", () => {
+      const rect = noBtn.getBoundingClientRect();
+      const padding = 12;
+      noBtn.style.left = clamp(rect.left, padding, window.innerWidth - rect.width - padding) + "px";
+      noBtn.style.top  = clamp(rect.top,  padding, window.innerHeight - rect.height - padding) + "px";
+      resizeCanvas();
+    });
+
+    /***********************
+     * FLOATING HEARTS FX  *
+     ***********************/
+    const heartEmojis = ["💖","💘","💕","💗","💓","💞"];
+    function spawnHeart(x = null){
+      const heart = document.createElement("div");
+      heart.className = "heart";
+      heart.textContent = heartEmojis[Math.floor(Math.random() * heartEmojis.length)];
+
+      const vw = window.innerWidth;
+      const left = (x !== null) ? x : Math.random() * vw;
+
+      const duration = 5 + Math.random() * 5; // 5-10s
+      const drift = (Math.random() * 140 - 70) + "px";
+      const scale = (0.8 + Math.random() * 1.4).toFixed(2);
+      const rot = (Math.random() * 120 - 60) + "deg";
+
+      heart.style.left = left + "px";
+      heart.style.animationDuration = duration + "s";
+      heart.style.setProperty("--drift", drift);
+      heart.style.setProperty("--scale", scale);
+      heart.style.setProperty("--rot", rot);
+
+      heartLayer.appendChild(heart);
+      setTimeout(() => heart.remove(), duration * 1000);
+    }
+    setInterval(() => spawnHeart(), 550);
+
+    /***********************
+     * CONFETTI (CANVAS)   *
+     ***********************/
+    const canvas = document.getElementById("confettiCanvas");
+    const ctx = canvas.getContext("2d");
+    let confettiOn = false;
+
+    function resizeCanvas(){
+      canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
+      canvas.height = Math.floor(window.innerHeight * devicePixelRatio);
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+    resizeCanvas();
+
+    const confetti = [];
+    function random(min, max){ return Math.random() * (max - min) + min; }
+
+    function addConfettiBurst(count=180){
+      for(let i=0;i<count;i++){
+        confetti.push({
+          x: random(0, window.innerWidth),
+          y: random(-window.innerHeight, 0),
+          w: random(6, 12),
+          h: random(8, 16),
+          vx: random(-1.2, 1.2),
+          vy: random(2.5, 6),
+          rot: random(0, Math.PI * 2),
+          vr: random(-0.15, 0.15),
+          // we’re not specifying exact colors; browser will render varied hues via hsl
+          hue: Math.floor(random(0, 360)),
+          alpha: random(0.85, 1)
+        });
+      }
+    }
+
+    function drawConfetti(){
+      if (!confettiOn) return;
+
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      for (let i = confetti.length - 1; i >= 0; i--){
+        const p = confetti[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+
+        // slight “air” wobble
+        p.vx += Math.sin(p.y * 0.01) * 0.01;
+
+        // recycle if off screen
+        if (p.y > window.innerHeight + 30){
+          confetti.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = `hsl(${p.hue} 90% 65%)`;
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+      }
+
+      requestAnimationFrame(drawConfetti);
+    }
+
+    function startConfetti(){
+      confettiOn = true;
+      addConfettiBurst(220);
+      drawConfetti();
+      // keep a light stream for a few seconds
+      let t = 0;
+      const interval = setInterval(() => {
+        t++;
+        addConfettiBurst(60);
+        if (t >= 8) clearInterval(interval); // ~8 seconds
+      }, 500);
+      // stop after 12 seconds
+      setTimeout(() => { confettiOn = false; ctx.clearRect(0,0,window.innerWidth,window.innerHeight); }, 12000);
+    }
+
+    /***********************
+     * YES CLICK: MODAL + MUSIC + CONFETTI
+     ***********************/
+    yesBtn.addEventListener("click", async () => {
+      modal.classList.add("show");
+      startConfetti();
+
+      // start music (must be triggered by user interaction)
+      try{
+        bgMusic.currentTime = 0;
+        bgMusic.volume = 0.85;
+        await bgMusic.play();
+      } catch (err){
+        // If iPhone blocks it for any reason, user can tap again and it will work.
+        console.log("Audio play blocked:", err);
+      }
+
+      if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+    });
+
+    closeModal.addEventListener("click", () => {
+      modal.classList.remove("show");
+      // optional: keep music playing, or pause:
+      // bgMusic.pause();
+    });
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.classList.remove("show");
+    });
+  </script>
+</body>
+</html>
